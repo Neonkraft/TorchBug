@@ -41,7 +41,10 @@ def count_matches(target_inputs, model_inputs):
     for module in target_inputs.keys():
         if module in model_inputs.keys():
             mismatches = find_mismatches(target_inputs[module], model_inputs[module])
-            module_matches[module] = (len(target_inputs[module]), len(target_inputs[module]) - len(mismatches))
+            n_inputs = len(target_inputs[module])
+            n_matches = len(target_inputs[module]) - len(mismatches)
+            n_matches = 0 if n_matches < 0 else n_matches
+            module_matches[module] = (n_inputs, n_matches)
 
     return module_matches
 
