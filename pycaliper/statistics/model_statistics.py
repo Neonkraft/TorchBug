@@ -73,8 +73,8 @@ class ModelStatistics(object):
         mismatches_self = find_mismatches(other_db_rows, db_rows)
 
         missing_modules = dict()
-        missing_modules[self.name] = mismatches_other
-        missing_modules[other.name] = mismatches_self
+        missing_modules[self.name] = mismatches_self
+        missing_modules[other.name] = mismatches_other
 
         if mismatches_other or mismatches_self:
             print("\n[bold][red]Number of registered leaf modules do not match! See below:[/red][/bold]")
