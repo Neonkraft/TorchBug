@@ -20,8 +20,11 @@ from ..utils import (
 
 def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True):
     x = torch.randn(*input_shape)
-    target_stats, target_inputs = forward_with_hooks(target_model_stats.model, x)
-    stats, model_inputs = forward_with_hooks(model_stats.model, x)
+
+    console = Console()
+    with console.status("[bold green]Passing input data through models...") as status:
+        target_stats, target_inputs = forward_with_hooks(target_model_stats.model, x)
+        stats, model_inputs = forward_with_hooks(model_stats.model, x)
 
     target_rows = [row for row in target_stats.get_db().all()]
     model_rows = [row for row in stats.get_db().all()]
@@ -59,7 +62,7 @@ def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input
 
     console = Console()
 
-    with console.status("[bold green]Passing data through models...") as status:
+    with console.status("[bold green]Passing input data through models...") as status:
         _, target_inputs = forward_with_hooks(target_model_stats.model, x, modules)
         _, model_inputs = forward_with_hooks(model_stats.model, x, modules)
 
