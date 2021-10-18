@@ -34,7 +34,7 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
     else:
         print("\n[green][bold]Number of leaf modules in forward pass match![/bold][/green]")
 
-    show_comparison({target_model_stats.name: mismatches_model, model_stats.name: mismatches_target}, as_table=as_table)
+    show_comparison({model_stats.name: mismatches_target, target_model_stats.name: mismatches_model}, as_table=as_table)
 
 
 def count_matches(target_inputs, model_inputs):
