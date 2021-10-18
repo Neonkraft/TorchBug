@@ -13,7 +13,8 @@ from ..utils import (
     show_comparison,
     init_weights,
     get_leaf_modules,
-    get_module_attrs_string
+    get_module_attrs_string,
+    get_module_name
 )
 
 
@@ -50,7 +51,7 @@ def count_matches(target_inputs, model_inputs):
     return module_matches
 
 
-def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True):
+def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None):
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -59,8 +60,8 @@ def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input
     console = Console()
 
     with console.status("[bold green]Passing data through models...") as status:
-        _, target_inputs = forward_with_hooks(target_model_stats.model, x)
-        _, model_inputs = forward_with_hooks(model_stats.model, x)
+        _, target_inputs = forward_with_hooks(target_model_stats.model, x, modules)
+        _, model_inputs = forward_with_hooks(model_stats.model, x, modules)
 
     with console.status("[bold green]Matching module inputs... This might take some time...") as status:
         matches = count_matches(target_inputs, model_inputs)
@@ -121,8 +122,8 @@ def compare_outputs_forward_pass(target_model, model, input_shape):
     return is_equal
 
 
-def forward_with_hooks(model, x):
-    modules = get_leaf_modules(model)
+def forward_with_hooks(model, x, modules=None):
+    leaf_modules = get_leaf_modules(model)
 
     module_inputs = defaultdict(lambda: [])
     stats = ModelStatistics(nn.Module(), "model")
@@ -132,8 +133,9 @@ def forward_with_hooks(model, x):
         stats._add_module_to_db(m)
         module_inputs[key].append(i[0].detach().numpy())
 
-    for module in modules:
-        module.register_forward_hook(hook_fn)
+    for module in leaf_modules:
+        if modules is None or get_module_name(module) in modules:
+            module.register_forward_hook(hook_fn)
 
     model(x)
 

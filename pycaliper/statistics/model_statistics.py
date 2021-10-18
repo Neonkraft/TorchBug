@@ -84,7 +84,7 @@ class ModelStatistics(object):
         show_comparison(missing_modules, as_table)
         return missing_modules
 
-    def print(self, as_table=True):
+    def print(self, as_table=True, modules=None):
         print(f"\n[bold][magenta]Summary of {self.name}[/magenta][/bold]")
 
         all_rows = self._db.all()
@@ -93,7 +93,8 @@ class ModelStatistics(object):
         row_types = defaultdict(lambda: [])
 
         for row in all_rows:
-            row_types[row["type"]].append(row)
+            if modules is None or (modules is not None and row["type"] in modules):
+                row_types[row["type"]].append(row)
 
         for rows in row_types.values():
             table = TableView(rows, "")
