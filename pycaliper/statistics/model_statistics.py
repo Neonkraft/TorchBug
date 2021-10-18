@@ -1,3 +1,4 @@
+from collections import defaultdict
 from tinydb import TinyDB, Query
 from tinydb.storages import MemoryStorage
 
@@ -89,12 +90,18 @@ class ModelStatistics(object):
         all_rows = self._db.all()
         all_rows = sorted(all_rows, key=lambda x: str(x))
 
-        table = TableView(all_rows, "")
+        row_types = defaultdict(lambda: [])
 
-        if as_table:
-            table.print()
-        else:
-            print(table.data)
+        for row in all_rows:
+            row_types[row["type"]].append(row)
+
+        for rows in row_types.values():
+            table = TableView(rows, "")
+
+            if as_table:
+                table.print()
+            else:
+                print(table.data)
 
         n_params_grad = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         n_params_no_grad = sum(p.numel() for p in self.model.parameters() if p.requires_grad == False)

@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from rich import print
+from rich.console import Console
 
 from ..tables.table_view import TableView
 from ..statistics.model_statistics import ModelStatistics
@@ -55,10 +56,14 @@ def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input
     init_weights(target_model_stats.model)
     init_weights(model_stats.model)
 
-    _, target_inputs = forward_with_hooks(target_model_stats.model, x)
-    _, model_inputs = forward_with_hooks(model_stats.model, x)
+    console = Console()
 
-    matches = count_matches(target_inputs, model_inputs)
+    with console.status("[bold green]Passing data through models...") as status:
+        _, target_inputs = forward_with_hooks(target_model_stats.model, x)
+        _, model_inputs = forward_with_hooks(model_stats.model, x)
+
+    with console.status("[bold green]Matching module inputs... This might take some time...") as status:
+        matches = count_matches(target_inputs, model_inputs)
 
     rows = []
     for key in matches.keys():
@@ -81,12 +86,17 @@ def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input
 
     rows = sorted(rows, key=lambda x: str(x))
 
-    table = TableView(rows, "", last_columns=["mismatches", "matches"])
+    row_types = defaultdict(lambda: [])
+    for row in rows:
+        row_types[row["type"]].append(row)
 
-    if as_table:
-        table.print()
-    else:
-        print(table.data)
+    for rows in row_types.values():
+        table = TableView(rows, "", last_columns=["mismatches", "matches"])
+
+        if as_table:
+            table.print()
+        else:
+            print(table.data)
 
 
 def compare_outputs_forward_pass(target_model, model, input_shape):
