@@ -53,7 +53,7 @@ def count_matches(target_inputs, model_inputs):
     return module_matches
 
 
-def compare_module_inputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None):
+def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None):
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -127,13 +127,13 @@ def compare_outputs_forward_pass(target_model, model, input_shape):
 def forward_with_hooks(model, x, modules=None):
     leaf_modules = get_leaf_modules(model)
 
-    module_inputs = defaultdict(lambda: [])
+    module_outputs = defaultdict(lambda: [])
     stats = ModelStatistics(nn.Module(), "model")
 
     def hook_fn(m, i, o):
         key = get_module_attrs_string(m)
         stats._add_module_to_db(m)
-        module_inputs[key].append(i[0].detach().numpy())
+        module_outputs[key].append(o[0].detach().numpy())
 
     for module in leaf_modules:
         if modules is None or get_module_name(module) in modules:
@@ -141,4 +141,4 @@ def forward_with_hooks(model, x, modules=None):
 
     model(x)
 
-    return stats, module_inputs
+    return stats, module_outputs

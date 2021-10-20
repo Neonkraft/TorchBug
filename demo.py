@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from pycaliper.statistics import ModelStatistics
 from pycaliper.comparison import (
-    compare_module_inputs_in_forward_pass,
+    compare_module_outputs_in_forward_pass,
     compare_modules_in_forward_pass,
     compare_outputs_forward_pass
 )
@@ -71,6 +71,6 @@ if __name__ == "__main__":
     # Compare the modules which are called during the forward pass throught the models
     compare_modules_in_forward_pass(new_model_stats, target_model_stats, input_shape=(1, 3, 32, 32), as_table=show_results_as_table)
 
-    # Compare the inputs to each module of the models, using PyTorch hooks
-    compare_module_inputs_in_forward_pass(new_model_stats, target_model_stats,
+    # Compare the outputs to each module of the models, using PyTorch hooks
+    compare_module_outputs_in_forward_pass(new_model_stats, target_model_stats,
                                           input_shape=(1, 3, 32, 32), show_matches=True, as_table=show_results_as_table)
