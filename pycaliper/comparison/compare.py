@@ -29,8 +29,8 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
     target_rows = [row for row in target_stats.get_db().all()]
     model_rows = [row for row in stats.get_db().all()]
 
-    mismatches_target = find_mismatches(target_rows, model_rows)
-    mismatches_model = find_mismatches(model_rows, target_rows)
+    mismatches_target, _ = find_mismatches(target_rows, model_rows)
+    mismatches_model, _ = find_mismatches(model_rows, target_rows)
 
     if mismatches_model or mismatches_target:
         print("\n[red][bold]Number of leaf modules in forward pass do not match! See below:[/bold][/red]")
@@ -45,10 +45,9 @@ def count_matches(target_inputs, model_inputs):
 
     for module in target_inputs.keys():
         if module in model_inputs.keys():
-            mismatches = find_mismatches(target_inputs[module], model_inputs[module])
+            mismatches, matches = find_mismatches(target_inputs[module], model_inputs[module])
             n_inputs = len(target_inputs[module])
-            n_matches = len(target_inputs[module]) - len(mismatches)
-            n_matches = 0 if n_matches < 0 else n_matches
+            n_matches = len(matches)
             module_matches[module] = (n_inputs, n_matches)
 
     return module_matches

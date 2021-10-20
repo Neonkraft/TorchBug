@@ -69,8 +69,8 @@ class ModelStatistics(object):
         db_rows = [row for row in self._db.all()]
         other_db_rows = [row for row in other_db.all()]
 
-        mismatches_other = find_mismatches(db_rows, other_db_rows)
-        mismatches_self = find_mismatches(other_db_rows, db_rows)
+        mismatches_other, _ = find_mismatches(db_rows, other_db_rows)
+        mismatches_self, _ = find_mismatches(other_db_rows, db_rows)
 
         missing_modules = dict()
         missing_modules[self.name] = mismatches_self

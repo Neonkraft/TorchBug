@@ -80,11 +80,14 @@ def find_mismatches(a, b):
                 already_matched[idx] = True
 
     mismatches = []
+    matches = []
     for idx, match in enumerate(already_matched):
         if not match:
             mismatches.append(b[idx])
+        else:
+            matches.append(b[idx])
 
-    return mismatches
+    return mismatches, matches
 
 
 def print_table(table, as_table=True):
