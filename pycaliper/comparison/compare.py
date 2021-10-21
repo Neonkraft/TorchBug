@@ -19,33 +19,102 @@ from ..utils import (
 
 
 def mark_module_for_comparison(module, name):
+    """Marks a given leaf module for comparison.
+
+    Args:
+        module      : Instance of torch.nn.Module (such and Conv2d or BatchNorm2d)
+        name        : Name to given the output tensor from the given module, for comparison later
+
+    Returns:
+        None.
+    """
     assert not list(module.children()), "The given module is not a leaf module"
     module.__pycaliper_attributes = {}
     module.__pycaliper_attributes["name"] = name
 
 
 def mark_all_modules_for_comparison(model):
+    """Marks all the leaf modules of a module for comparison
+
+    Args:
+        model      : Any instance of torch.nn.Module, which can have other sub modules.
+
+    Returns:
+        None.
+    """
     for module in get_leaf_modules(model):
         mark_module_for_comparison(module, "")
 
 
 def unmark_module_for_comparison(module):
+    """Unmarks a given leaf module for comparison.
+
+    Args:
+        module      : Instance of torch.nn.Module (such and Conv2d or BatchNorm2d)
+
+    Returns:
+        None.
+    """
     if hasattr(module, "__pycaliper_attributes"):
         del(module.__pycaliper_attributes)
 
 
 def unmark_all_modules_for_comparison(model):
+    """Unmarks all the leaf modules of a module for comparison.
+
+    Args:
+        model      : Any instance of torch.nn.Module, which can have other sub modules.
+
+    Returns:
+        None.
+    """
     for module in get_leaf_modules(model):
         unmark_module_for_comparison(module)
 
 
 def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True):
+    """Compares the modules called during the forward pass in both models.
+
+       This is done to ensure that the registered sub-modules are actually consumed in the forwad pass.
+       For example, comparing the registered modules of the following two models will indicate they are
+       equivalent, but their outputs during forward pass will not match:
+
+        class ModelA(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = nn.Conv2d(10, 10, 10)
+                self.relu = nn.ReLU()
+
+            def forward(self, x):
+                x = self.conv(x)
+                x = self.relu(x)
+                return x
+
+        class ModelB(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = nn.Conv2d(10, 10, 10)
+                self.relu = nn.ReLU()
+
+            def forward(self, x):
+                return x
+
+    Args:
+        target_model_stats      : Target model wrapped in a ModelStatistics object.
+        model_stats             : New model wrapped in a ModelStatistics object.
+        input_shape             : Shape of the input tensor to both the models.
+        as_table                : If True, shows the results in tabular form.
+                                  Else, prints it as json.
+
+    Returns:
+        None.
+    """
     x = torch.randn(*input_shape)
 
     console = Console()
     with console.status("[bold green]Passing input data through models...") as status:
-        target_stats, target_inputs = forward_with_hooks(target_model_stats.model, x)
-        stats, model_inputs = forward_with_hooks(model_stats.model, x)
+        target_stats, _ = forward_with_hooks(target_model_stats.model, x)
+        stats, _ = forward_with_hooks(model_stats.model, x)
 
     target_rows = [row for row in target_stats.get_db().all()]
     model_rows = [row for row in stats.get_db().all()]
@@ -62,6 +131,21 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
 
 
 def count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
+    """Counts the matches between the two given dictionary of tensors
+
+    Args:
+        target_tensors      : Dictionary with module name (with attributes) from the target model as key, and a list of all output
+                              tensors from modules with said attributes as value.
+                              Eg : {"type=torch.nn.modules.batchnorm.BatchNorm2d--eps=1e-05--num_features=16": [tensor1, tensor2, ... tensorN]}
+                              This dict, for example, indicates that there were N BatchNorm2d instances in the model, with the given attributes.
+                              The tensors in the list are the outputs from each of those batchnorms.
+        model_tensors       : Same dictionary as target_tensors, but for the modules from the new model.
+        rtol                : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+        atol                : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+
+    Returns:
+        Dictionary mapping from module name with attributes to tuple (total number of tensors, number of tensors which match).
+    """
     module_matches = {}
 
     for module in target_tensors.keys():
@@ -75,6 +159,23 @@ def count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
 
 
 def find_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
+    """Finds the matches between the two given dictionary of tensors.
+
+    Args:
+        target_tensors      : Dictionary with module name (with attributes) from the target model as key, and a list of all output
+                              tensors from modules with said attributes as value.
+                              Eg : {"type=torch.nn.modules.batchnorm.BatchNorm2d--eps=1e-05--num_features=16": [tensor1, tensor2, ... tensorN]}
+                              This dict, for example, indicates that there were N BatchNorm2d instances in the model, with the given attributes.
+                              The tensors in the list are the outputs from each of those batchnorms.
+        model_tensors       : Same dictionary as target_tensors, but for the modules from the new model.
+        rtol                : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+        atol                : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+
+    Returns:
+        (module_matches, modules_without_match)
+        modules_matches         : List of tuples (target model module, new model module which matches target module, number of matches).
+        modules_without_match   : Sorted list of new model modules which do not have a match.
+    """
     module_matches = []
     module_no_matches = []
 
@@ -93,6 +194,30 @@ def find_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
 def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True,
                                            show_matches=True, modules=None, marked_modules_only=False,
                                            rtol=10e-5, atol=10e-8):
+    """Initializes all the leaf modules in both models using a seed which is generated based on their attributes, and
+       then passes the same data through both models. Forward hooks are registered in leaf modules based on the other
+       arguments, and the outputs from similar modules are compared with each other. Displays the results in tabular
+       or json form.
+
+    Args:
+        target_model_stats      : Target model wrapped in a ModelStatistics object.
+        model_stats             : New model wrapped in a ModelStatistics object.
+        input_shape             : Shape of the input tensor to both the models.
+        as_table                : If True, shows the results in tabular form.
+                                  Else, prints it as json.
+        show_matches            : If True, shows the modules which match completely also in the results.
+        modules                 : List of modules names (such as "torch.nn.modules.activation.ReLU"). The forward hooks
+                                  are only added to modules of the given types. Makes the brute force comparison of outputs
+                                  much faster, since there will be fewer tensors to compare.
+        marked_modules_only     : If True, adds the forward hooks to only modules which have been marked for comparison.
+                                  (see function mark_module_for_comparison)
+                                  Overrides modules.
+        rtol                    : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+        atol                    : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+
+    Returns:
+        None.
+    """
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -160,7 +285,23 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
-def compare_final_outputs_in_forward_pass(target_model, model, input_shape, rtol=10e-5, atol=10e-8):
+def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, rtol=10e-5, atol=10e-8):
+    """Initializes all the leaf modules in both models using a seed which is generated based on their attributes,
+       passes the same data through both models, and then compares the outputs of both the models.
+
+    Args:
+        target_model_stats      : Target model wrapped in a ModelStatistics object.
+        model_stats             : New model wrapped in a ModelStatistics object.
+        input_shape             : Shape of the input tensor to both the models.
+        rtol                    : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+        atol                    : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+
+    Returns:
+        True if the outputs are equal, else False.
+    """
+    target_model = target_model_stats.model
+    model = model_stats.model
+
     init_weights(target_model)
     init_weights(model)
 
@@ -186,12 +327,19 @@ def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
     """Registers forward hook in the leaf modules of the model, based on the other arguments.
 
     Args:
-        model               : Pytorch model
-        x                   : Data to forward pass through the model
+        model               : Pytorch model.
+        x                   : Data to forward pass through the model.
         modules             : List of names of modules. If specified, the forward hooks are only added to modules
-                              of the kind specified in the list. Otherwise, the hooks are added to all the models
-        marked_modules_only : If true, only leaf modules which have been marked will have the forward hooks registered
-                              to them. Overrides the modules argument.
+                              of the kind specified in the list. Otherwise, the hooks are added to all the models.
+        marked_modules_only : If True, only leaf modules which have been marked will have the forward hooks registered
+                              in them. Overrides the modules argument.
+
+    Returns:
+        Tuple of (stats, module_outputs)
+        stats               : ModelStatistics object with a list of all the modules invoked during forward pass in its db
+        module_outputs      : Dictionary with module name with attributes as key and list of output tensors of these modules as values.
+                              Eg : {"type=torch.nn.modules.batchnorm.BatchNorm2d--eps=1e-05--num_features=16": [tensor1, tensor2, ... tensorN]}
+                              This dict, for example, indicates that there were N BatchNorm2d instances in the model, with the given attributes.
     """
     leaf_modules = get_leaf_modules(model)
 

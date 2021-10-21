@@ -59,6 +59,7 @@ if __name__ == "__main__":
     new_model_stats = ModelStatistics(new_model, "New Model")
 
     show_results_as_table = True
+    input_shape = (1, 3, 32, 32)
 
     # See the statistics of the models
     target_model_stats.print(as_table=show_results_as_table)
@@ -68,15 +69,15 @@ if __name__ == "__main__":
     new_model_stats.compare(target_model_stats, as_table=show_results_as_table)
 
     # Compare the outputs from both the models, when they are initialized with the same weights and passed the same input
-    compare_final_outputs_in_forward_pass(target_model, new_model, input_shape=(1, 3, 32, 32), rtol=10e-6, atol=10e-6)
+    compare_final_outputs_in_forward_pass(target_model_stats, new_model_stats, input_shape=input_shape, rtol=10e-6, atol=10e-6)
 
     # Compare the modules which are called during the forward pass through the models
-    compare_modules_in_forward_pass(target_model_stats, new_model_stats, input_shape=(1, 3, 32, 32), as_table=show_results_as_table)
+    compare_modules_in_forward_pass(target_model_stats, new_model_stats, input_shape=input_shape, as_table=show_results_as_table)
 
     # Compare the outputs of each module of the models during forward pass
     compare_module_outputs_in_forward_pass(target_model_stats,
                                            new_model_stats,
-                                           input_shape=(1, 3, 32, 32),
+                                           input_shape=input_shape,
                                            show_matches=True,
                                            as_table=show_results_as_table)
 
@@ -84,14 +85,14 @@ if __name__ == "__main__":
     mark_all_modules_for_comparison(target_model_stats.model)  # Marking all the leaf modules in the target model
     mark_module_for_comparison(target_model_stats.model.conv2, "Second Convolution")  # Marking a specific convolution with a name
 
-    # Marking only a specific convolution of the new model
-    mark_module_for_comparison(new_model_stats.model.conv2, "Second Convolution ahoy!")
-    mark_module_for_comparison(new_model_stats.model.fc2, "FC2")  # Marking only a specific linear layer of the new model
+    # Marking only a specific modules of the new model
+    mark_module_for_comparison(new_model_stats.model.conv2, "2nd Convolution")
+    mark_module_for_comparison(new_model_stats.model.fc2, "Second fully connected layer")
 
     # Compare the outputs of only the marked module of the models
     compare_module_outputs_in_forward_pass(target_model_stats,
                                            new_model_stats,
-                                           input_shape=(1, 3, 32, 32),
+                                           input_shape=input_shape,
                                            show_matches=False,
                                            as_table=show_results_as_table,
                                            marked_modules_only=True,  # Compares only marked modules - this is much faster as fewer hooks have to be registered this way

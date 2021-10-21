@@ -23,12 +23,22 @@ class ModelStatistics(object):
         self._init_db()
 
     def _init_db(self):
+        """Initializes the TinyDB database with data about the different types of leaf modules present in this model."""
         leaf_modules = get_leaf_modules(self.model)
 
         for module in leaf_modules:
             self._add_module_to_db(module)
 
     def _create_row(self, module, n_params=True):
+        """Creates a row for the TinyDB database based on the name and attributes of the given module.
+
+        Args:
+            module      : Instance of torch.nn.Module to create the row for.
+            n_params    : If True, also adds the number of parameters with and without .requires_grad to the row.
+
+        Returns:
+            Dictionary representing a record in the database for the given module.
+        """
         module_name = get_module_name(module)
         module_attrs = get_module_attrs(module)
 
@@ -45,6 +55,15 @@ class ModelStatistics(object):
         return row
 
     def _add_module_to_db(self, module):
+        """Adds a record to the database for the given module. If a record is already present for the
+           given module, increment the "count" field of the record for that module by one.
+
+        Args:
+            module      : Instance of torch.nn.Module to add/update in the database.
+
+        Returns:
+            None.
+        """
         row = self._create_row(module)
         result = self._db.search(Query().fragment(row))
 
@@ -57,13 +76,19 @@ class ModelStatistics(object):
             self._db.upsert({'count': result[0]['count'] + 1}, Query().fragment(row))
 
     def get_db(self):
+        """Returns the database."""
         return self._db
 
-    def query_for_module(self, module):
-        row = self._create_row(module)
-        return self._db.search(Query().fragment(row))
-
     def compare(self, other, as_table=True):
+        """Compares self.model with another model.
+
+        Args:
+            other       : Model to compare self.model to, wrapped in a ModelStatistics object
+            as_table    : If True, prints the comparison as tables. Else, prints it as json.
+
+        Returns:
+            None.
+        """
         other_db = other.get_db()
 
         db_rows = [row for row in self._db.all()]
@@ -82,9 +107,18 @@ class ModelStatistics(object):
             print("\n[bold][green]Number of registered leaf modules match![/green][/bold]")
 
         show_comparison(missing_modules, as_table)
-        return missing_modules
 
     def print(self, as_table=True, modules=None):
+        """Prints the numbers of the various types of leaf modules present in the model.
+
+        Args:
+            as_table        : If True, prints the summary as tables. Else, prints it as json.
+            modules         : List of leaf module names (like torch.nn.modules.conv.Conv2d). If not None,
+                              shows only information about the module types present in the list.
+
+        Returns:
+            None.
+        """
         print(f"\n[bold][magenta]Summary of {self.name}[/magenta][/bold]")
 
         all_rows = self._db.all()

@@ -7,6 +7,17 @@ from ..tables.table_view import TableView
 
 
 def get_leaf_modules(model):
+    """Gets all the leaf modules present inside a module as a flat list.
+       'Leaf module' here refers to all the torch modules which have no children, such as
+       torch.nn.modules.linear.Linear or torch.nn.modules.conv.Conv2d, but not torch.nn.Sequential
+       or other custom modules with other modules inside them.
+
+    Args:
+        model       : Instance of torch.nn.Module
+
+    Returns:
+        List of all leaf modules in
+    """
     children = list(model.children())
     leaf_modules = []
 
@@ -20,6 +31,7 @@ def get_leaf_modules(model):
 
 
 def get_module_name(module):
+    """Gets the fully qualified name of a given module."""
     klass = module.__class__
     module_name = klass.__module__
 
@@ -29,10 +41,12 @@ def get_module_name(module):
 
 
 def get_module_attrs(module):
+    """Gets a list of all the non-private module attributes."""
     return sorted([attr for attr in vars(module) if attr[0] != "_" and attr != "training"])
 
 
 def get_module_attrs_string(module):
+    """Gets the string representation of a module based on its non-private attributes."""
     attrs = get_module_attrs(module)
     attr_string = "type=" + get_module_name(module) + "--"
 
@@ -43,11 +57,13 @@ def get_module_attrs_string(module):
 
 
 def get_int_hash(module):
+    """Get an integer hash of a module based on its non-private attrbutes."""
     attr_string = get_module_attrs_string(module)
     return int(hashlib.sha1(attr_string.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
 
 
 def init_weights(model):
+    """Initializes the weights of the modules of the given model using a seed derived from the non-private module attributes."""
     modules = get_leaf_modules(model)
 
     for module in modules:
@@ -59,6 +75,7 @@ def init_weights(model):
 
 
 def _is_equal(a, b, rtol=10e-5, atol=10e-8):
+    """Compares two objects and returns the result."""
     if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
         if a.shape == b.shape:
             return np.isclose(a, b, rtol=rtol, atol=atol).all()
@@ -91,6 +108,7 @@ def find_mismatches(a, b, rtol=10e-5, atol=10e-8):
 
 
 def print_table(table, as_table=True):
+    """Prints the given table as a table or as json, depending on the as_table argument."""
     if as_table:
         table.print()
     else:
