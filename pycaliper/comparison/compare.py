@@ -76,6 +76,7 @@ def count_matches(target_tensors, model_tensors):
 
 def find_matches(target_tensors, model_tensors):
     module_matches = []
+    module_no_matches = []
 
     for target_module in target_tensors.keys():
         for module in model_tensors.keys():
@@ -83,7 +84,10 @@ def find_matches(target_tensors, model_tensors):
             if len(matches) > 0:
                 module_matches.append((target_module, module, len(matches)))
 
-    return module_matches
+    matched_modules = {m[1] for m in module_matches}
+    modules_without_match = sorted(list(set(model_tensors.keys()).difference(matched_modules)))
+
+    return module_matches, modules_without_match
 
 
 def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True,
@@ -101,11 +105,16 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
 
     if marked_modules_only:
         with console.status("[bold green]Matching marked module inputs... This might take some time...") as status:
-            matches = find_matches(target_outputs, model_outputs)
+            matches, no_matches_modules = find_matches(target_outputs, model_outputs)
 
         for target_module, module, n_matches in matches:
             print(f"Output of [magenta][italic]{module}[/italic] in {model_stats.name}[/magenta] " +
                   f"[green]matches with[/green] output of [magenta][italic]{target_module}[/italic] in {target_model_stats.name} [/magenta]")
+
+        if no_matches_modules:
+            print(f"[red][bold]No matches found for following modules:")
+            for module in no_matches_modules:
+                print(f"[magenta]{module} in {model_stats.name}")
 
         return
 
