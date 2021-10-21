@@ -49,7 +49,7 @@ class ModelStatistics(object):
             row[attr] = getattr(module, attr)
 
         if n_params:
-            row['n_params_no_grad'] = sum([p.numel() for p in module.parameters()])
+            row['n_params_no_grad'] = sum([p.numel() for p in module.parameters() if not p.requires_grad])
             row['n_params_grad'] = sum([p.numel() for p in module.parameters() if p.requires_grad])
 
         return row
