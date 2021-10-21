@@ -159,7 +159,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
-def compare_outputs_forward_pass(target_model, model, input_shape):
+def compare_final_outputs_in_forward_pass(target_model, model, input_shape):
     init_weights(target_model)
     init_weights(model)
 

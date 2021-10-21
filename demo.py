@@ -6,7 +6,7 @@ from pycaliper.statistics import ModelStatistics
 from pycaliper.comparison import (
     compare_module_outputs_in_forward_pass,
     compare_modules_in_forward_pass,
-    compare_outputs_forward_pass,
+    compare_final_outputs_in_forward_pass,
     mark_module_for_comparison,
     mark_all_modules_for_comparison
 )
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     new_model_stats.compare(target_model_stats, as_table=show_results_as_table)
 
     # Compare the outputs from both the models, when they are initialized with the same weights and passed the same input
-    compare_outputs_forward_pass(target_model, new_model, input_shape=(1, 3, 32, 32))
+    compare_final_outputs_in_forward_pass(target_model, new_model, input_shape=(1, 3, 32, 32))
 
     # Compare the modules which are called during the forward pass through the models
     compare_modules_in_forward_pass(target_model_stats, new_model_stats, input_shape=(1, 3, 32, 32), as_table=show_results_as_table)
