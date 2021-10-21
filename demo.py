@@ -68,7 +68,7 @@ if __name__ == "__main__":
     new_model_stats.compare(target_model_stats, as_table=show_results_as_table)
 
     # Compare the outputs from both the models, when they are initialized with the same weights and passed the same input
-    compare_final_outputs_in_forward_pass(target_model, new_model, input_shape=(1, 3, 32, 32))
+    compare_final_outputs_in_forward_pass(target_model, new_model, input_shape=(1, 3, 32, 32), rtol=10e-6, atol=10e-6)
 
     # Compare the modules which are called during the forward pass through the models
     compare_modules_in_forward_pass(target_model_stats, new_model_stats, input_shape=(1, 3, 32, 32), as_table=show_results_as_table)
@@ -94,4 +94,7 @@ if __name__ == "__main__":
                                            input_shape=(1, 3, 32, 32),
                                            show_matches=False,
                                            as_table=show_results_as_table,
-                                           marked_modules_only=True)  # Compares only marked modules
+                                           marked_modules_only=True,  # Compares only marked modules - this is much faster as fewer hooks have to be registered this way
+                                           rtol=10e-6,
+                                           atol=10e-6
+                                           )

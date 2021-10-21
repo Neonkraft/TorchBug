@@ -61,12 +61,12 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
     show_comparison({model_stats.name: mismatches_target, target_model_stats.name: mismatches_model}, as_table=as_table)
 
 
-def count_matches(target_tensors, model_tensors):
+def count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
     module_matches = {}
 
     for module in target_tensors.keys():
         if module in model_tensors.keys():
-            mismatches, matches = find_mismatches(target_tensors[module], model_tensors[module])
+            mismatches, matches = find_mismatches(target_tensors[module], model_tensors[module], rtol, atol)
             n_inputs = len(target_tensors[module])
             n_matches = len(matches)
             module_matches[module] = (n_inputs, n_matches)
@@ -74,13 +74,13 @@ def count_matches(target_tensors, model_tensors):
     return module_matches
 
 
-def find_matches(target_tensors, model_tensors):
+def find_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
     module_matches = []
     module_no_matches = []
 
     for target_module in target_tensors.keys():
         for module in model_tensors.keys():
-            _, matches = find_mismatches(target_tensors[target_module], model_tensors[module])
+            _, matches = find_mismatches(target_tensors[target_module], model_tensors[module], rtol, atol)
             if len(matches) > 0:
                 module_matches.append((target_module, module, len(matches)))
 
@@ -91,7 +91,8 @@ def find_matches(target_tensors, model_tensors):
 
 
 def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True,
-                                           show_matches=True, modules=None, marked_modules_only=False):
+                                           show_matches=True, modules=None, marked_modules_only=False,
+                                           rtol=10e-5, atol=10e-8):
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -105,7 +106,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
 
     if marked_modules_only:
         with console.status("[bold green]Matching marked module inputs... This might take some time...") as status:
-            matches, no_matches_modules = find_matches(target_outputs, model_outputs)
+            matches, no_matches_modules = find_matches(target_outputs, model_outputs, rtol, atol)
 
         for target_module, module, n_matches in matches:
             print(f"Output of [magenta][italic]{module}[/italic] in {model_stats.name}[/magenta] " +
@@ -119,7 +120,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
         return
 
     with console.status("[bold green]Matching module inputs... This might take some time...") as status:
-        matches = count_matches(target_outputs, model_outputs)
+        matches = count_matches(target_outputs, model_outputs, rtol, atol)
 
     rows = []
     for key in matches.keys():
@@ -159,7 +160,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
-def compare_final_outputs_in_forward_pass(target_model, model, input_shape):
+def compare_final_outputs_in_forward_pass(target_model, model, input_shape, rtol=10e-5, atol=10e-8):
     init_weights(target_model)
     init_weights(model)
 
@@ -171,7 +172,7 @@ def compare_final_outputs_in_forward_pass(target_model, model, input_shape):
     if out_target.shape != out_model.shape:
         return False
 
-    is_equal = np.allclose(out_target, out_model)
+    is_equal = np.allclose(out_target, out_model, rtol=rtol, atol=atol)
 
     if is_equal:
         print("\n[green][bold]Model outputs match![/bold][/green]")

@@ -58,17 +58,17 @@ def init_weights(model):
             torch.nn.init.normal_(p)
 
 
-def _is_equal(a, b):
+def _is_equal(a, b, rtol=10e-5, atol=10e-8):
     if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
         if a.shape == b.shape:
-            return np.isclose(a, b).all()
+            return np.isclose(a, b, rtol=rtol, atol=atol).all()
         else:
             return False
     else:
         return a == b
 
 
-def find_mismatches(a, b):
+def find_mismatches(a, b, rtol=10e-5, atol=10e-8):
     already_matched = [False] * len(b)
 
     for doc_a in a:
@@ -76,7 +76,7 @@ def find_mismatches(a, b):
             if already_matched[idx]:
                 continue
 
-            if _is_equal(doc_a, doc_b):
+            if _is_equal(doc_a, doc_b, rtol, atol):
                 already_matched[idx] = True
 
     mismatches = []
