@@ -17,6 +17,7 @@ from ..utils import (
     get_module_name
 )
 
+
 def mark_module_for_comparison(module, name):
     assert not list(module.children()), "The given module is not a leaf module"
     module.__pycaliper_attributes = {}
@@ -72,6 +73,7 @@ def count_matches(target_tensors, model_tensors):
 
     return module_matches
 
+
 def find_matches(target_tensors, model_tensors):
     module_matches = []
 
@@ -84,7 +86,8 @@ def find_matches(target_tensors, model_tensors):
     return module_matches
 
 
-def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None, marked_modules_only=False):
+def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True,
+                                           show_matches=True, modules=None, marked_modules_only=False):
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -143,7 +146,8 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             print(table.data)
 
     if not [row for row in rows if row["mismatches"] > 0]:
-            print(f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
+        print(
+            f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
 def compare_outputs_forward_pass(target_model, model, input_shape):
@@ -195,7 +199,7 @@ def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
     for module in leaf_modules:
         if marked_modules_only:
             if hasattr(module, "__pycaliper_attributes"):
-               module.register_forward_hook(hook_fn)
+                module.register_forward_hook(hook_fn)
         elif modules is None or get_module_name(module) in modules:
             module.register_forward_hook(hook_fn)
 

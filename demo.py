@@ -81,11 +81,12 @@ if __name__ == "__main__":
                                            as_table=show_results_as_table)
 
     # Mark the modules you want to compare in both models
-    mark_all_modules_for_comparison(target_model_stats.model) # Marking all the leaf modules in the target model
-    mark_module_for_comparison(target_model_stats.model.conv2, "Second Convolution") # Marking a specific convolution with a name
+    mark_all_modules_for_comparison(target_model_stats.model)  # Marking all the leaf modules in the target model
+    mark_module_for_comparison(target_model_stats.model.conv2, "Second Convolution")  # Marking a specific convolution with a name
 
-    mark_module_for_comparison(new_model_stats.model.conv2, "Second Convolution ahoy!") # Marking only a specific convolution of the new model
-    mark_module_for_comparison(new_model_stats.model.fc2, "FC2") # Marking only a specific linear layer of the new model
+    # Marking only a specific convolution of the new model
+    mark_module_for_comparison(new_model_stats.model.conv2, "Second Convolution ahoy!")
+    mark_module_for_comparison(new_model_stats.model.fc2, "FC2")  # Marking only a specific linear layer of the new model
 
     # Compare the outputs of only the marked module of the models
     compare_module_outputs_in_forward_pass(target_model_stats,
@@ -93,4 +94,4 @@ if __name__ == "__main__":
                                            input_shape=(1, 3, 32, 32),
                                            show_matches=False,
                                            as_table=show_results_as_table,
-                                           marked_modules_only=True) # Compares only marked modules
+                                           marked_modules_only=True)  # Compares only marked modules
