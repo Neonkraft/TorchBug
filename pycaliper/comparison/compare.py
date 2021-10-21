@@ -17,6 +17,26 @@ from ..utils import (
     get_module_name
 )
 
+def mark_module_for_comparison(module, name):
+    assert not list(module.children()), "The given module is not a leaf module"
+    module.__pycaliper_attributes = {}
+    module.__pycaliper_attributes["name"] = name
+
+
+def mark_all_modules_for_comparison(model):
+    for module in get_leaf_modules(model):
+        mark_module_for_comparison(module, "")
+
+
+def unmark_module_for_comparison(module):
+    if hasattr(module, "__pycaliper_attributes"):
+        del(module.__pycaliper_attributes)
+
+
+def unmark_all_modules_for_comparison(model):
+    for module in get_leaf_modules(model):
+        unmark_module_for_comparison(module)
+
 
 def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True):
     x = torch.randn(*input_shape)
@@ -40,20 +60,31 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
     show_comparison({model_stats.name: mismatches_target, target_model_stats.name: mismatches_model}, as_table=as_table)
 
 
-def count_matches(target_inputs, model_inputs):
+def count_matches(target_tensors, model_tensors):
     module_matches = {}
 
-    for module in target_inputs.keys():
-        if module in model_inputs.keys():
-            mismatches, matches = find_mismatches(target_inputs[module], model_inputs[module])
-            n_inputs = len(target_inputs[module])
+    for module in target_tensors.keys():
+        if module in model_tensors.keys():
+            mismatches, matches = find_mismatches(target_tensors[module], model_tensors[module])
+            n_inputs = len(target_tensors[module])
             n_matches = len(matches)
             module_matches[module] = (n_inputs, n_matches)
 
     return module_matches
 
+def find_matches(target_tensors, model_tensors):
+    module_matches = []
 
-def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None):
+    for target_module in target_tensors.keys():
+        for module in model_tensors.keys():
+            _, matches = find_mismatches(target_tensors[target_module], model_tensors[module])
+            if len(matches) > 0:
+                module_matches.append((target_module, module, len(matches)))
+
+    return module_matches
+
+
+def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, as_table=True, show_matches=True, modules=None, marked_modules_only=False):
     x = torch.randn(*input_shape)
 
     init_weights(target_model_stats.model)
@@ -62,11 +93,21 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
     console = Console()
 
     with console.status("[bold green]Passing input data through models...") as status:
-        _, target_inputs = forward_with_hooks(target_model_stats.model, x, modules)
-        _, model_inputs = forward_with_hooks(model_stats.model, x, modules)
+        _, target_outputs = forward_with_hooks(target_model_stats.model, x, modules, marked_modules_only)
+        _, model_outputs = forward_with_hooks(model_stats.model, x, modules, marked_modules_only)
+
+    if marked_modules_only:
+        with console.status("[bold green]Matching marked module inputs... This might take some time...") as status:
+            matches = find_matches(target_outputs, model_outputs)
+
+        for target_module, module, n_matches in matches:
+            print(f"Output of [magenta][italic]{module}[/italic] in {model_stats.name}[/magenta] " +
+                  f"[green]matches with[/green] output of [magenta][italic]{target_module}[/italic] in {target_model_stats.name} [/magenta]")
+
+        return
 
     with console.status("[bold green]Matching module inputs... This might take some time...") as status:
-        matches = count_matches(target_inputs, model_inputs)
+        matches = count_matches(target_outputs, model_outputs)
 
     rows = []
     for key in matches.keys():
@@ -82,10 +123,10 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
 
         rows.append(row)
 
+    print(f"\n[bold][magenta]Module-wise output comparison [/magenta][/bold]")
+
     if not show_matches:
         rows = [row for row in rows if row["mismatches"] > 0]
-
-    print(f"\n[bold][magenta]Module-wise input comparison [/magenta][/bold]")
 
     rows = sorted(rows, key=lambda x: str(x))
 
@@ -100,6 +141,9 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             table.print()
         else:
             print(table.data)
+
+    if not [row for row in rows if row["mismatches"] > 0]:
+            print(f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
 def compare_outputs_forward_pass(target_model, model, input_shape):
@@ -124,19 +168,35 @@ def compare_outputs_forward_pass(target_model, model, input_shape):
     return is_equal
 
 
-def forward_with_hooks(model, x, modules=None):
+def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
+    """Registers forward hook in the leaf modules of the model, based on the other arguments.
+
+    Args:
+        model               : Pytorch model
+        x                   : Data to forward pass through the model
+        modules             : List of names of modules. If specified, the forward hooks are only added to modules
+                              of the kind specified in the list. Otherwise, the hooks are added to all the models
+        marked_modules_only : If true, only leaf modules which have been marked will have the forward hooks registered
+                              to them. Overrides the modules argument.
+    """
     leaf_modules = get_leaf_modules(model)
 
     module_outputs = defaultdict(lambda: [])
     stats = ModelStatistics(nn.Module(), "model")
 
     def hook_fn(m, i, o):
-        key = get_module_attrs_string(m)
+        if hasattr(m, "__pycaliper_attributes") and m.__pycaliper_attributes["name"] != "":
+            key = m.__pycaliper_attributes["name"]
+        else:
+            key = get_module_attrs_string(m)
         stats._add_module_to_db(m)
         module_outputs[key].append(o[0].detach().numpy())
 
     for module in leaf_modules:
-        if modules is None or get_module_name(module) in modules:
+        if marked_modules_only:
+            if hasattr(module, "__pycaliper_attributes"):
+               module.register_forward_hook(hook_fn)
+        elif modules is None or get_module_name(module) in modules:
             module.register_forward_hook(hook_fn)
 
     model(x)
