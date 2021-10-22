@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pycaliper.statistics import ModelStatistics
-from pycaliper.comparison import (
+from torchbug.summary import ModelSummary
+from torchbug.comparison import (
     compare_module_outputs_in_forward_pass,
     compare_modules_in_forward_pass,
     compare_final_outputs_in_forward_pass,
@@ -71,17 +71,17 @@ class NewModel(nn.Module):
 
 
 if __name__ == "__main__":
-    target_model = TargetModel()
-    new_model = NewModel()
+    target_model = TargetModel() # Original model which you're trying to emulate
+    new_model = NewModel() #New implementation of the target model
 
-    # Wrap the models in ModelStatistics objects first
-    target_model_stats = ModelStatistics(target_model, "Target Model")
-    new_model_stats = ModelStatistics(new_model, "New Model")
+    # Wrap the models in ModelSummary objects first
+    target_model_stats = ModelSummary(target_model, "Target Model")
+    new_model_stats = ModelSummary(new_model, "New Model")
 
-    show_results_as_table = True
-    input_shape = (1, 3, 32, 32)
+    show_results_as_table = True # Results can be printed as tables or json
+    input_shape = (1, 3, 32, 32) # Shape of input data to the models
 
-    # See the statistics of the models
+    # See the counts of various leaf modules in the models
     target_model_stats.print(as_table=show_results_as_table)
     new_model_stats.print(as_table=show_results_as_table)
 
@@ -101,10 +101,10 @@ if __name__ == "__main__":
                                            show_matches=True,
                                            as_table=show_results_as_table)
 
-    # This next part gives you more flexibility in comparing the models. By marking specific modules of the target and new model
-    # with a specific name, compare_module_outputs_in_forward_pass(...) lets you compare the outputs of only those modules.
+    # This next part gives you more flexibility in comparing the models. By marking specific modules of the target and new models
+    # with specific names, compare_module_outputs_in_forward_pass(...) lets you compare the outputs of only those modules.
     # This can be helpful if you want to check if the output of a given module in the new model matches, say, with any of the modules
-    # in the target model.
+    # in the target model, or if you want to compare the outputs of two modules which are *supposed* to match.
 
     # Mark the modules you want to compare in both models
     mark_all_modules_for_comparison(target_model_stats.model)  # Marking all the leaf modules in the target model

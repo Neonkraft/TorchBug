@@ -4,7 +4,7 @@ with open('requirements.txt') as f:
     requires = f.read().splitlines()
 
 setup(
-    name='PyCaliper',
+    name='TorchBug',
     description='A lightweight framework to compare different PyTorch implementations of the same model',
     author='Arjun Krishnakumar',
     author_email='arjun.krishnakumar@students.uni-freiburg.de',

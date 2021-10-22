@@ -7,7 +7,7 @@ from rich import print
 from rich.console import Console
 
 from ..tables.table_view import TableView
-from ..statistics.model_statistics import ModelStatistics
+from ..summary.model_summary import ModelSummary
 from ..utils import (
     find_mismatches,
     show_comparison,
@@ -29,12 +29,12 @@ def mark_module_for_comparison(module, name):
         None.
     """
     assert not list(module.children()), "The given module is not a leaf module"
-    module.__pycaliper_attributes = {}
-    module.__pycaliper_attributes["name"] = name
+    module.__torchbug_attributes = {}
+    module.__torchbug_attributes["name"] = name
 
 
 def mark_all_modules_for_comparison(model):
-    """Marks all the leaf modules of a module for comparison
+    """Marks all the leaf modules of a module for comparison. The modules will be marked with an empty string for its name.
 
     Args:
         model      : Any instance of torch.nn.Module, which can have other sub modules.
@@ -50,13 +50,13 @@ def unmark_module_for_comparison(module):
     """Unmarks a given leaf module for comparison.
 
     Args:
-        module      : Instance of torch.nn.Module (such and Conv2d or BatchNorm2d)
+        module      : Instance of torch.nn.Module (such and Conv2d or BatchNorm2d).
 
     Returns:
         None.
     """
-    if hasattr(module, "__pycaliper_attributes"):
-        del(module.__pycaliper_attributes)
+    if hasattr(module, "__torchbug_attributes"):
+        del(module.__torchbug_attributes)
 
 
 def unmark_all_modules_for_comparison(model):
@@ -100,8 +100,8 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
                 return x
 
     Args:
-        target_model_stats      : Target model wrapped in a ModelStatistics object.
-        model_stats             : New model wrapped in a ModelStatistics object.
+        target_model_stats      : Target model wrapped in a ModelSummary object.
+        model_stats             : New model wrapped in a ModelSummary object.
         input_shape             : Shape of the input tensor to both the models.
         as_table                : If True, shows the results in tabular form.
                                   Else, prints it as json.
@@ -113,8 +113,8 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
 
     console = Console()
     with console.status("[bold green]Passing input data through models...") as status:
-        target_stats, _ = forward_with_hooks(target_model_stats.model, x)
-        stats, _ = forward_with_hooks(model_stats.model, x)
+        target_stats, _ = _forward_with_hooks(target_model_stats.model, x)
+        stats, _ = _forward_with_hooks(model_stats.model, x)
 
     target_rows = [row for row in target_stats.get_db().all()]
     model_rows = [row for row in stats.get_db().all()]
@@ -130,7 +130,7 @@ def compare_modules_in_forward_pass(target_model_stats, model_stats, input_shape
     show_comparison({model_stats.name: mismatches_target, target_model_stats.name: mismatches_model}, as_table=as_table)
 
 
-def count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
+def _count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
     """Counts the matches between the two given dictionary of tensors
 
     Args:
@@ -158,7 +158,7 @@ def count_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
     return module_matches
 
 
-def find_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
+def _find_matches(target_tensors, model_tensors, rtol=10e-5, atol=10e-8):
     """Finds the matches between the two given dictionary of tensors.
 
     Args:
@@ -200,8 +200,8 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
        or json form.
 
     Args:
-        target_model_stats      : Target model wrapped in a ModelStatistics object.
-        model_stats             : New model wrapped in a ModelStatistics object.
+        target_model_stats      : Target model wrapped in a ModelSummary object.
+        model_stats             : New model wrapped in a ModelSummary object.
         input_shape             : Shape of the input tensor to both the models.
         as_table                : If True, shows the results in tabular form.
                                   Else, prints it as json.
@@ -211,7 +211,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
                                   much faster, since there will be fewer tensors to compare.
         marked_modules_only     : If True, adds the forward hooks to only modules which have been marked for comparison.
                                   (see function mark_module_for_comparison)
-                                  Overrides modules.
+                                  Overrides modules and show_matches.
         rtol                    : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
         atol                    : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
 
@@ -226,26 +226,26 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
     console = Console()
 
     with console.status("[bold green]Passing input data through models...") as status:
-        _, target_outputs = forward_with_hooks(target_model_stats.model, x, modules, marked_modules_only)
-        _, model_outputs = forward_with_hooks(model_stats.model, x, modules, marked_modules_only)
+        _, target_outputs = _forward_with_hooks(target_model_stats.model, x, modules, marked_modules_only)
+        _, model_outputs = _forward_with_hooks(model_stats.model, x, modules, marked_modules_only)
 
     if marked_modules_only:
         with console.status("[bold green]Matching marked module inputs... This might take some time...") as status:
-            matches, no_matches_modules = find_matches(target_outputs, model_outputs, rtol, atol)
+            matches, no_matches_modules = _find_matches(target_outputs, model_outputs, rtol, atol)
 
         for target_module, module, n_matches in matches:
             print(f"Output of [magenta][italic]{module}[/italic] in {model_stats.name}[/magenta] " +
                   f"[green]matches with[/green] output of [magenta][italic]{target_module}[/italic] in {target_model_stats.name} [/magenta]")
 
         if no_matches_modules:
-            print(f"[red][bold]No matches found for following modules:")
+            print(f"\n[red][bold]No matches found for following modules:")
             for module in no_matches_modules:
                 print(f"[magenta]{module} in {model_stats.name}")
 
         return
 
     with console.status("[bold green]Matching module inputs... This might take some time...") as status:
-        matches = count_matches(target_outputs, model_outputs, rtol, atol)
+        matches = _count_matches(target_outputs, model_outputs, rtol, atol)
 
     rows = []
     for key in matches.keys():
@@ -290,8 +290,8 @@ def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input
        passes the same data through both models, and then compares the outputs of both the models.
 
     Args:
-        target_model_stats      : Target model wrapped in a ModelStatistics object.
-        model_stats             : New model wrapped in a ModelStatistics object.
+        target_model_stats      : Target model wrapped in a ModelSummary object.
+        model_stats             : New model wrapped in a ModelSummary object.
         input_shape             : Shape of the input tensor to both the models.
         rtol                    : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
         atol                    : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
@@ -323,7 +323,7 @@ def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input
     return is_equal
 
 
-def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
+def _forward_with_hooks(model, x, modules=None, marked_modules_only=False):
     """Registers forward hook in the leaf modules of the model, based on the other arguments.
 
     Args:
@@ -336,7 +336,7 @@ def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
 
     Returns:
         Tuple of (stats, module_outputs)
-        stats               : ModelStatistics object with a list of all the modules invoked during forward pass in its db
+        stats               : ModelSummary object with a list of all the modules invoked during forward pass in its db
         module_outputs      : Dictionary with module name with attributes as key and list of output tensors of these modules as values.
                               Eg : {"type=torch.nn.modules.batchnorm.BatchNorm2d--eps=1e-05--num_features=16": [tensor1, tensor2, ... tensorN]}
                               This dict, for example, indicates that there were N BatchNorm2d instances in the model, with the given attributes.
@@ -344,11 +344,11 @@ def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
     leaf_modules = get_leaf_modules(model)
 
     module_outputs = defaultdict(lambda: [])
-    stats = ModelStatistics(nn.Module(), "model")
+    stats = ModelSummary(nn.Module(), "model")
 
     def hook_fn(m, i, o):
-        if hasattr(m, "__pycaliper_attributes") and m.__pycaliper_attributes["name"] != "":
-            key = m.__pycaliper_attributes["name"]
+        if hasattr(m, "__torchbug_attributes") and m.__torchbug_attributes["name"] != "":
+            key = m.__torchbug_attributes["name"]
         else:
             key = get_module_attrs_string(m)
         stats._add_module_to_db(m)
@@ -356,7 +356,7 @@ def forward_with_hooks(model, x, modules=None, marked_modules_only=False):
 
     for module in leaf_modules:
         if marked_modules_only:
-            if hasattr(module, "__pycaliper_attributes"):
+            if hasattr(module, "__torchbug_attributes"):
                 module.register_forward_hook(hook_fn)
         elif modules is None or get_module_name(module) in modules:
             module.register_forward_hook(hook_fn)

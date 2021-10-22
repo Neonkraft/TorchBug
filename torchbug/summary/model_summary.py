@@ -13,7 +13,8 @@ from ..utils.utils import (
 )
 
 
-class ModelStatistics(object):
+class ModelSummary(object):
+    """Wrapper class for PyTorch models. Stores the counts of different types of leaf modules in the model."""
 
     def __init__(self, model, name):
         self.model = model
@@ -83,7 +84,7 @@ class ModelStatistics(object):
         """Compares self.model with another model.
 
         Args:
-            other       : Model to compare self.model to, wrapped in a ModelStatistics object
+            other       : Model to compare self.model to, wrapped in a ModelSummary object.
             as_table    : If True, prints the comparison as tables. Else, prints it as json.
 
         Returns:
@@ -110,6 +111,10 @@ class ModelStatistics(object):
 
     def print(self, as_table=True, modules=None):
         """Prints the numbers of the various types of leaf modules present in the model.
+           Each row in the table shows indicates a module of a certain type, with a certain combination
+           of attributes. Each column represents an attribute of the module, along with additional information
+           like the number of instances of this module (with this combination of attributes) present in the model,
+           and the number of trainable and untrainable parameters present in the module.
 
         Args:
             as_table        : If True, prints the summary as tables. Else, prints it as json.
@@ -142,5 +147,5 @@ class ModelStatistics(object):
         n_params_no_grad = sum(p.numel() for p in self.model.parameters() if p.requires_grad == False)
 
         print(f"{len(all_rows)} different types of leaf modules")
-        print(f"{n_params_grad} parameters (requires_grad = True)")
-        print(f"{n_params_no_grad} parameters (requires_grad = False)")
+        print(f"{n_params_grad} parameters with requires_grad = True")
+        print(f"{n_params_no_grad} parameters with requires_grad = False")
