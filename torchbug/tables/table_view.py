@@ -17,6 +17,11 @@ class TableView(object):
         self.console = Console()
 
     def _create_table(self):
+        """Creates a table from self.data.
+
+        Returns:
+            Table
+        """
         table = Table(show_header=True, header_style="bold magenta")
         columns = self._get_column_names(self.data)
 
@@ -45,6 +50,14 @@ class TableView(object):
         return table
 
     def _get_column_names(self, data):
+        """Gets the names of the columns from data.
+
+        Args:
+            data    : Dictionary of attributes to their values.
+
+        Returns:
+            List of columns in the table.
+        """
         columns = set()
         for row in data:
             for key in row.keys():
@@ -59,4 +72,5 @@ class TableView(object):
             return columns
 
     def print(self):
+        """Prints the table."""
         self.console.print(self.table)
