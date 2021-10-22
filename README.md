@@ -2,7 +2,7 @@
   <img src="images/LogoWithTitle.png">
 </div>
 
-**TorchBug** is a lightweight library designed to compare two PyTorch implementations of the same model. It allows you to count, and compare, the different *leaf modules* (i.e., lowest level PyTorch modules, such as `torch.nn.Conv2d`) present both in the *target model* and the *new model*. These leaf modules are distinguished based on their attributes, so that an instance of `Conv2d` with a `kernel_size` of `3` and `stride` of `1` is counted separately from a `Conv2d` with `kernel_size` of `3` but `stride` `2`.
+**TorchBug** is a lightweight library designed to compare two PyTorch implementations of the same network architecture. It allows you to count, and compare, the different *leaf modules* (i.e., lowest level PyTorch modules, such as `torch.nn.Conv2d`) present both in the *target model* and the *new model*. These leaf modules are distinguished based on their attributes, so that an instance of `Conv2d` with a `kernel_size` of `3` and `stride` of `1` is counted separately from a `Conv2d` with `kernel_size` of `3` but `stride` `2`.
 
 Further, when the leaf modules match, the library also provides you the functionality to initialize both the models equivalently, by initializing the leaf modules with weights using seeds which are obtained from the hash of their attributes. **TorchBug** then lets you pass the same input through both the models, and compare their outputs, or the outputs of intermediate leaf modules, to help find where the *new model* implementaion deviates from the *target model*.
 
