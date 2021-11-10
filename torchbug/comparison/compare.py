@@ -285,7 +285,7 @@ def compare_module_outputs_in_forward_pass(target_model_stats, model_stats, inpu
             f"[green]Outputs of all modules present in {model_stats.name} match with the corresponding {target_model_stats.name} module outputs!\n")
 
 
-def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, rtol=10e-5, atol=10e-8):
+def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input_shape, rtol=10e-5, atol=10e-8, target_output_fn=None, model_output_fn=None):
     """Initializes all the leaf modules in both models using a seed which is generated based on their attributes,
        passes the same data through both models, and then compares the outputs of both the models.
 
@@ -295,6 +295,9 @@ def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input
         input_shape             : Shape of the input tensor to both the models.
         rtol                    : Relative tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
         atol                    : Absolute tolerance for comparison of tensors. See https://numpy.org/doc/stable/reference/generated/numpy.isclose.html
+        target_output_fn        : Function to extract the tensor for comparison from the target model output.
+                                  The model might output a tuple of tensors, for example, consisting of the main output and the output of an auxilliary head.
+        model_output_fn         : Same as target_output_fn, but for the new model.
 
     Returns:
         True if the outputs are equal, else False.
@@ -307,8 +310,15 @@ def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input
 
     x = torch.randn(*input_shape)
 
-    out_target = target_model(x).detach().numpy()
-    out_model = model(x).detach().numpy()
+    if target_output_fn:
+        out_target = target_output_fn(target_model(x)).detach().numpy()
+    else:
+        out_target = target_model(x).detach().numpy()
+
+    if model_output_fn:
+        out_model = model_output_fn(model(x)).detach().numpy()
+    else:
+        out_model = model(x).detach().numpy()
 
     if out_target.shape != out_model.shape:
         return False
