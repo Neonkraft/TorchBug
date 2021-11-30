@@ -321,6 +321,7 @@ def compare_final_outputs_in_forward_pass(target_model_stats, model_stats, input
         out_model = model(x).detach().numpy()
 
     if out_target.shape != out_model.shape:
+        print("\n[red][bold]Model output shapes do not match![/bold][/red]")
         return False
 
     is_equal = np.allclose(out_target, out_model, rtol=rtol, atol=atol)
